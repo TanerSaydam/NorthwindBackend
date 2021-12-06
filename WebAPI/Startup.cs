@@ -1,3 +1,6 @@
+using Core.DependncyResolvers;
+using Core.Extensions;
+using Core.Utilities.IoC;
 using Core.Utilities.Security.Encyption;
 using Core.Utilities.Security.Jwt;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -28,7 +31,7 @@ namespace WebAPI
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
-        {
+        {            
             services.AddControllers();
             services.AddCors(options =>
             {
@@ -51,6 +54,11 @@ namespace WebAPI
                     IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions.SecurityKey)
                 };
 
+            });
+
+            services.AddDependcyResolvers(new ICoreModule[]
+            {
+                new CoreModule(),
             });
         }
 
