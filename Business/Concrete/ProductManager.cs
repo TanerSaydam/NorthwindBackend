@@ -19,6 +19,8 @@ using Core.Aspects.Autofac.Performance;
 using System.Threading;
 using Core.Aspects.Autofac.Logging;
 using Core.CrossCuttingConcerns.Logging.log4Net.Loggers;
+using Core.Aspects.Autofac.Exception;
+using Core.Utilities.Business;
 
 namespace Business.Concrete
 {
@@ -27,19 +29,48 @@ namespace Business.Concrete
         //Cross Cutting Concerns - Validation, Cache, Log, Performance, Aut, Transaction
         //AOP - Aspect Oriented Programming
 
-        private IProductDal _productDal;        
+        private IProductDal _productDal;
+        private ICategoryService _categoryService;
 
-        public ProductManager(IProductDal productDal)
+        public ProductManager(IProductDal productDal, ICategoryService categoryService)
         {
-            _productDal = productDal;            
+            _productDal = productDal;
+            _categoryService = categoryService;
         }
-                
+
+
         [ValidationAspect(typeof(ProductValidator),Priority =1)]        
         [CacheRemoveAspect("IProductService.Get")]
         public IResult Add(Product product)
-        {            
+        {
+            IResult result = BusinessRules.Run(CheckIfProductNameExists(product.ProductName), CheckIfCategoryIsEnabled());
+            if (result!=null)
+            {
+                return result;
+            }
+
             _productDal.Add(product);
             return new SuccessResult(Messages.ProductAdded);
+        }
+
+        private IResult CheckIfProductNameExists(string productName)
+        {
+            var result = _productDal.GetList(p => p.ProductName == productName).Any();
+            if (result)
+            {
+                return new ErrorResult(Messages.ProductNameAlreadyExists);
+            }
+            return new SuccessResult();
+        }
+
+        private IResult CheckIfCategoryIsEnabled()
+        {
+            var result = _categoryService.GetList();
+            if (result.Data.Count < 10)
+            {
+                return new ErrorResult(Messages.ProductNameAlreadyExists);
+            }
+            return new SuccessResult();
         }
 
         public IResult Delete(Product product)
@@ -52,7 +83,7 @@ namespace Business.Concrete
         {
             return new SuccessDataResult<Product>(_productDal.Get(p => p.ProductId == productId));
         }
-
+        
         [PerformanceAspect(5)]
         [LogAspect(typeof(DatabaseLogger))]
         public IDataResult<List<Product>> GetList()
